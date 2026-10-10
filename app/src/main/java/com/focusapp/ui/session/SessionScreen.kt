@@ -1,8 +1,10 @@
 package com.focusapp.ui.session
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,9 +34,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.focusapp.data.Goal
 import com.focusapp.data.SessionOutcome
+import com.focusapp.service.BlockerAccessibilityService
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,8 +64,14 @@ fun SessionScreen(modifier: Modifier = Modifier, viewModel: SessionViewModel = v
 
     Box(modifier = modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         if (session == null) {
+            val accessibilityEnabled = rememberAccessibilityServiceEnabled()
             val goals by viewModel.goals.collectAsState(initial = emptyList())
-            StartSessionForm(goals = goals, onStart = viewModel::startSession)
+            Column {
+                if (!accessibilityEnabled) {
+                    AccessibilityPermissionPrompt()
+                }
+                StartSessionForm(goals = goals, onStart = viewModel::startSession)
+            }
         } else {
             val startedAt = session!!.startedAt!!
             val lockedUntil = viewModel.lockManager.lockedUntil(startedAt, session!!.plannedMinutes)
@@ -262,6 +275,42 @@ private fun EmergencyExitWaiting(reason: String, remainingMillis: Long, onCancel
         )
         Button(onClick = onCancel, modifier = Modifier.padding(top = 24.dp)) {
             Text("Cancel, go back to the session")
+        }
+    }
+}
+
+@Composable
+private fun rememberAccessibilityServiceEnabled(): Boolean {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var enabled by remember { mutableStateOf(BlockerAccessibilityService.isEnabled(context)) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                enabled = BlockerAccessibilityService.isEnabled(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    return enabled
+}
+
+@Composable
+private fun AccessibilityPermissionPrompt() {
+    val context = LocalContext.current
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        Text(
+            "To block distracting apps during a locked session, turn on the " +
+                "Focus App accessibility service.",
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Button(
+            onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+            modifier = Modifier.padding(top = 12.dp),
+        ) {
+            Text("Open Accessibility Settings")
         }
     }
 }
