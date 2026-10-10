@@ -4,14 +4,14 @@ Rule: we do ONE ticket at a time. After each, Claude stops, explains what change
 
 | # | Ticket | Status |
 |---|--------|--------|
-| 00 | Open the project and run it on your phone | todo |
-| 01 | App structure, theme and navigation | todo |
-| 02 | Data model and local database (Room) | todo |
-| 03 | Session timer and commitment lock logic | todo |
-| 04 | Emergency passes | todo |
-| 05 | Foreground service and lock screen | todo |
-| 06 | App-blocking overlay | todo |
-| 07 | Focus Browser (video blocked) | todo |
+| 00 | Open the project and run it on your phone | done |
+| 01 | App structure, theme and navigation | done |
+| 02 | Data model and local database (Room) | done |
+| 03 | Session timer and commitment lock logic | done |
+| 04 | Emergency passes | done |
+| 05 | Foreground service and lock screen | done |
+| 06 | App-blocking overlay | code done, needs physical-phone testing |
+| 07 | Focus Browser (video blocked) | code done, needs physical-phone testing |
 | 08 | AI planner backend | todo |
 | 09 | Plan UI, check-ins and re-planning | todo |
 
