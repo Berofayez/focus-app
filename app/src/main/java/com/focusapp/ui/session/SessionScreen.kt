@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.focusapp.data.Goal
 import com.focusapp.data.SessionOutcome
 import com.focusapp.service.BlockerAccessibilityService
+import com.focusapp.ui.browser.FocusBrowserScreen
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,12 +103,21 @@ fun SessionScreen(modifier: Modifier = Modifier, viewModel: SessionViewModel = v
                 }
                 viewModel.lockManager.isLocked(lockedUntil) -> {
                     val passesUsed by viewModel.emergencyPassesUsedThisWeek.collectAsState(initial = 0)
-                    LockedCountdown(
-                        title = session!!.title,
-                        remainingMillis = lockedUntil - now,
-                        canRequestEmergencyExit = viewModel.emergencyPassPolicy.canUsePass(passesUsed),
-                        onRequestEmergencyExit = { reason -> viewModel.requestEmergencyExit(session!!, reason) },
-                    )
+                    var showBrowser by remember(session!!.id) { mutableStateOf(false) }
+                    if (showBrowser) {
+                        FocusBrowserScreen(
+                            allowedSites = session!!.allowedSites,
+                            onExit = { showBrowser = false },
+                        )
+                    } else {
+                        LockedCountdown(
+                            title = session!!.title,
+                            remainingMillis = lockedUntil - now,
+                            canRequestEmergencyExit = viewModel.emergencyPassPolicy.canUsePass(passesUsed),
+                            onRequestEmergencyExit = { reason -> viewModel.requestEmergencyExit(session!!, reason) },
+                            onOpenBrowser = { showBrowser = true },
+                        )
+                    }
                 }
                 else -> EndOfSessionPrompt(title = session!!.title, onResult = viewModel::completeSession)
             }
@@ -119,7 +129,7 @@ fun SessionScreen(modifier: Modifier = Modifier, viewModel: SessionViewModel = v
 @Composable
 private fun StartSessionForm(
     goals: List<Goal>,
-    onStart: (goalId: Long, title: String, firstStep: String, plannedMinutes: Int) -> Unit,
+    onStart: (goalId: Long, title: String, firstStep: String, plannedMinutes: Int, allowedSites: List<String>) -> Unit,
 ) {
     if (goals.isEmpty()) {
         Text("Add a goal first, on the Goals tab.", style = MaterialTheme.typography.bodyLarge)
@@ -131,6 +141,7 @@ private fun StartSessionForm(
     var title by remember { mutableStateOf("") }
     var firstStep by remember { mutableStateOf("") }
     var minutesText by remember { mutableStateOf("25") }
+    var allowedSitesText by remember { mutableStateOf("") }
 
     val plannedMinutes = minutesText.toIntOrNull()
     val canStart = title.isNotBlank() && plannedMinutes != null && plannedMinutes > 0
@@ -179,9 +190,18 @@ private fun StartSessionForm(
             label = { Text("Minutes") },
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         )
+        OutlinedTextField(
+            value = allowedSitesText,
+            onValueChange = { allowedSitesText = it },
+            label = { Text("Allowed sites for the Focus Browser (comma-separated)") },
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        )
 
         Button(
-            onClick = { onStart(selectedGoal.id, title, firstStep, plannedMinutes ?: 0) },
+            onClick = {
+                val allowedSites = allowedSitesText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                onStart(selectedGoal.id, title, firstStep, plannedMinutes ?: 0, allowedSites)
+            },
             enabled = canStart,
             modifier = Modifier.padding(top = 16.dp),
         ) {
@@ -196,6 +216,7 @@ private fun LockedCountdown(
     remainingMillis: Long,
     canRequestEmergencyExit: Boolean,
     onRequestEmergencyExit: (reason: String) -> Unit,
+    onOpenBrowser: () -> Unit,
 ) {
     val totalSeconds = remainingMillis / 1000
     val minutes = totalSeconds / 60
@@ -215,6 +236,10 @@ private fun LockedCountdown(
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(top = 8.dp),
         )
+
+        Button(onClick = onOpenBrowser, modifier = Modifier.padding(top = 16.dp)) {
+            Text("Open Focus Browser")
+        }
 
         if (!showEmergencyForm) {
             if (canRequestEmergencyExit) {

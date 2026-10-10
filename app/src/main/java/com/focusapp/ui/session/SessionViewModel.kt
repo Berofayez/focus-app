@@ -41,7 +41,13 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
     // Creating and starting are the same action for now: there is no separate
     // planning step yet (that arrives with the AI planner in tickets 08/09).
-    fun startSession(goalId: Long, title: String, firstStep: String, plannedMinutes: Int) {
+    fun startSession(
+        goalId: Long,
+        title: String,
+        firstStep: String,
+        plannedMinutes: Int,
+        allowedSites: List<String>,
+    ) {
         viewModelScope.launch {
             focusSessionDao.insert(
                 FocusSession(
@@ -50,7 +56,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
                     firstStep = firstStep.trim(),
                     plannedMinutes = plannedMinutes,
                     allowedApps = emptyList(),
-                    allowedSites = emptyList(),
+                    allowedSites = allowedSites,
                     status = SessionStatus.LOCKED,
                     startedAt = System.currentTimeMillis(),
                     endedAt = null,
